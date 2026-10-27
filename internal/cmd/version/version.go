@@ -39,9 +39,16 @@ func Get() Info {
 var (
 	envoyGatewayVersion string
 	gatewayAPIVersion   string
-	envoyProxyVersion   = strings.Split(egv1a1.DefaultEnvoyProxyImage, ":")[1]
+	envoyProxyVersion   = envoyProxyTag(egv1a1.DefaultEnvoyProxyImage)
 	gitCommitID         string
 )
+
+// envoyProxyTag returns everything after the first ":" of the image reference,
+// keeping any "@sha256:<digest>" suffix intact.
+func envoyProxyTag(image string) string {
+	_, tag, _ := strings.Cut(image, ":")
+	return tag
+}
 
 func init() {
 	bi, ok := debug.ReadBuildInfo()
