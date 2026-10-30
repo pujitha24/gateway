@@ -1402,6 +1402,76 @@ func TestRouteDestination_NeedsClusterPerSetting(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "shared IP endpoint with different TLS",
+			input: RouteDestination{
+				Name: "dest",
+				Settings: []*DestinationSetting{
+					{
+						Endpoints: []*DestinationEndpoint{{Host: "10.0.0.1", Port: 8443}},
+						TLS:       &TLSUpstreamConfig{SNI: new("a")},
+					},
+					{
+						Endpoints: []*DestinationEndpoint{{Host: "10.0.0.1", Port: 8443}},
+						TLS:       &TLSUpstreamConfig{SNI: new("b")},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "shared IP endpoint with same TLS",
+			input: RouteDestination{
+				Name: "dest",
+				Settings: []*DestinationSetting{
+					{
+						Endpoints: []*DestinationEndpoint{{Host: "10.0.0.1", Port: 8443}},
+						TLS:       &TLSUpstreamConfig{SNI: new("a")},
+					},
+					{
+						Endpoints: []*DestinationEndpoint{{Host: "10.0.0.1", Port: 8443}},
+						TLS:       &TLSUpstreamConfig{SNI: new("a")},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "different IP endpoints with different TLS",
+			input: RouteDestination{
+				Name: "dest",
+				Settings: []*DestinationSetting{
+					{
+						Endpoints: []*DestinationEndpoint{{Host: "10.0.0.1", Port: 8443}},
+						TLS:       &TLSUpstreamConfig{SNI: new("a")},
+					},
+					{
+						Endpoints: []*DestinationEndpoint{{Host: "10.0.0.2", Port: 8443}},
+						TLS:       &TLSUpstreamConfig{SNI: new("b")},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "shared FQDN endpoint with different TLS",
+			input: RouteDestination{
+				Name: "dest",
+				Settings: []*DestinationSetting{
+					{
+						Endpoints:   []*DestinationEndpoint{{Host: "example.com", Port: 8443}},
+						AddressType: new(FQDN),
+						TLS:         &TLSUpstreamConfig{SNI: new("a")},
+					},
+					{
+						Endpoints:   []*DestinationEndpoint{{Host: "example.com", Port: 8443}},
+						AddressType: new(FQDN),
+						TLS:         &TLSUpstreamConfig{SNI: new("b")},
+					},
+				},
+			},
+			expected: false,
+		},
 	}
 
 	for _, test := range tests {

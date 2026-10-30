@@ -12,8 +12,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/netip"
+	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -2298,7 +2301,35 @@ func (r *RouteDestination) NeedsClusterPerSetting() bool {
 		r.HasFiltersInSettings() ||
 		(len(r.Settings) > 1 && r.HasPreferLocalZone()) ||
 		r.HasMixedUpstreamProtocolRequirements() ||
-		r.HasMixedAutoSNISettings()
+		r.HasMixedAutoSNISettings() ||
+		r.HasSharedEndpointsWithDifferentTLS()
+}
+
+// HasSharedEndpointsWithDifferentTLS returns true if multiple settings share an IP endpoint
+// address but use different TLS configurations. EDS identifies hosts by ip:port, so Envoy would
+// merge such endpoints into one host and only the first setting's transport socket would be used.
+func (r *RouteDestination) HasSharedEndpointsWithDifferentTLS() bool {
+	seen := map[string]*DestinationSetting{}
+	for _, s := range r.Settings {
+		if s == nil || (s.AddressType != nil && *s.AddressType == FQDN) {
+			continue
+		}
+		for _, ep := range s.Endpoints {
+			if ep == nil || ep.Path != nil {
+				continue
+			}
+			key := net.JoinHostPort(ep.Host, strconv.FormatUint(uint64(ep.Port), 10))
+			prev, ok := seen[key]
+			if !ok {
+				seen[key] = s
+				continue
+			}
+			if prev != s && !reflect.DeepEqual(prev.TLS, s.TLS) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // HasMixedEndpoints returns true if the RouteDestination has endpoints of multiple types
